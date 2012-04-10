@@ -1,83 +1,19 @@
-DCPUC, A C-like language for the DCPU-16, the 16-bit 'hardware' in Mojang's game 0x10c. 
+A Visual studio plugin that allows compiling C# code into binary/asm for 0x10c DCPU.
 
-This compiler targets DCPU assembly. http://0x10c.com/doc/dcpu-16.txt
+Features:
+* Create new Visual studio project
+* Compile basic c# code (no objects as off yet.) 
+* Output to asm
+* Emulate basic programs using NotchCpu.EmuTest
 
-The output of this compiler has been tested with this emulator https://github.com/mappum/DCPU-16 and may output the 'BRK' instruction, which is a feature of that emulator and not of the official DCPU-16 spec.
+ToDo:
+* Emulation using CLI at real speed
+* Debugger support (Run programs and debug them via visual studio)
+* Object support
+* Small standard library
+* Auto complete and error checking in Visual Studio
+* Network support (running two simulators together)
 
-There is a simple GUI compiler included (DCPUCIDE). Try compiling this program:
-
-function fib(n) 
-{
-   if (n == 0) return 0;
-   if (n == 1) return 1;
-   return fib(n-1) + fib(n-2);
-}
-
-var a = fib(6);
-
-For reference
-
-SET PUSH, 0x0006
-JSR LABEL0_fib
-SET PUSH, A
-BRK ;Non-standard
-:LABEL0_fib
-SET PUSH, 0x0000
-SET A, SP
-SET PUSH, [0x0003+A]
-SET A, 0x0
-IFE POP, POP
-SET A, 0x1
-SET PUSH, A
-IFE POP, 0x0
-SET PC, LABEL1END
-SET PUSH, 0x0000
-SET A, POP
-SET B, POP
-ADD SP, 0x0001
-SET PC, B
-:LABEL1END
-SET PUSH, 0x0001
-SET A, SP
-SET PUSH, [0x0003+A]
-SET A, 0x0
-IFE POP, POP
-SET A, 0x1
-SET PUSH, A
-IFE POP, 0x0
-SET PC, LABEL2END
-SET PUSH, 0x0001
-SET A, POP
-SET B, POP
-ADD SP, 0x0001
-SET PC, B
-:LABEL2END
-SET PUSH, 0x0002
-SET A, SP
-SET PUSH, [0x0003+A]
-SET A, POP
-SUB A, POP
-SET PUSH, A
-JSR LABEL0_fib
-SET PUSH, A
-SET PUSH, 0x0001
-SET A, SP
-SET PUSH, [0x0004+A]
-SET A, POP
-SUB A, POP
-SET PUSH, A
-JSR LABEL0_fib
-SET PUSH, A
-SET A, POP
-ADD A, POP
-SET PUSH, A
-SET A, POP
-SET B, POP
-ADD SP, 0x0001
-SET PC, B
-SET B, POP
-ADD SP, 0x0001
-SET PC, B
-
-
-Have fun, and read the language spec!
+Big thanks to:
+https://github.com/Blecki/DCPUC
+https://github.com/densitynz/DCPU-16-ASM.NET
