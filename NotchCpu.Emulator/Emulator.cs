@@ -142,12 +142,8 @@ namespace NotchCpu.Emulator
             switch (opCode)
             {
                case OpCode.JSR_OP:
-
-                    ushort res;
-                    Step(out res);
-
                     _Reg.Ram[--_Reg.SP] = _Reg.PC;
-                    _Reg.PC = res;
+                    _Reg.PC = a.Value;
                     break;
             }
         }
