@@ -5,168 +5,8 @@ using System.Text;
 
 namespace NotchCpu.Emulator
 {
-    public class Register
-    {
-        Registers _Reg;
-        RegisterCodes _Code;
-        ushort _Offset;
+    public delegate void MemUpdateHandler(ushort loc, ushort value);
 
-        internal Register(Registers reg, ushort offset)
-        {
-            _Reg = reg;
-            _Offset = offset;
-        }
-
-        internal Register(Registers reg, RegisterCodes code, ushort offset) : this(reg, offset)
-        {
-            _Code = code;
-        }
-
-        internal Register(Registers reg, int code, ushort offset)
-            : this(reg, offset)
-        {
-            _Code = (RegisterCodes)code;
-        }
-
-        public ushort Value
-        {
-            get
-            {
-                switch (_Code)
-                {
-                    case RegisterCodes.A:
-                    case RegisterCodes.B:
-                    case RegisterCodes.C:
-                    case RegisterCodes.X:
-                    case RegisterCodes.Y:
-                    case RegisterCodes.Z:
-                    case RegisterCodes.I:
-                    case RegisterCodes.J:
-                        return _Reg.Reg[_Offset];
-
-                    case RegisterCodes.SP:
-                        return _Reg.SP;
-
-                    case RegisterCodes.PC:
-                        return _Reg.PC;
-
-                    case RegisterCodes.O:
-                        return _Reg.O;
-
-                    case RegisterCodes.Literal:
-                        return _Offset;
-
-                    default:
-                        return _Reg.RAM[_Offset];
-                }
-            }
-            set
-            {
-                switch (_Code)
-                {
-                    case RegisterCodes.A:
-                    case RegisterCodes.B:
-                    case RegisterCodes.C:
-                    case RegisterCodes.X:
-                    case RegisterCodes.Y:
-                    case RegisterCodes.Z:
-                    case RegisterCodes.I:
-                    case RegisterCodes.J:
-                        _Reg.Reg[_Offset] = value;
-                        break;
-
-                    case RegisterCodes.Literal:
-                        break;
-
-                    case RegisterCodes.SP:
-                        _Reg.SP = value;
-                        break;
-
-                    case RegisterCodes.PC:
-                        _Reg.PC = (ushort)(value - 1); //take 1 as we increment after the cur instruction
-                        break;
-
-                    case RegisterCodes.O:
-                        _Reg.O = value;
-                        break;
-
-                    default:
-                        _Reg.RAM[_Offset] = value;
-                        break;
-                }
-            }
-        }
-    }
-
-    public class Registers
-    {
-        public ushort SP;
-        public ushort PC;
-        public ushort O;
-
-        public ushort[] Reg = new ushort[8];
-        public ushort[] RAM = new ushort[65536];
-
-        public Register Get(ushort code)
-        {
-            int r = (ushort)(((int)code) & 0x7);
-
-            switch ((RegisterCodes)code)
-            {
-                case RegisterCodes.A:
-                case RegisterCodes.B:
-                case RegisterCodes.C:
-                case RegisterCodes.X:
-                case RegisterCodes.Y:
-                case RegisterCodes.Z:
-                case RegisterCodes.I:
-                case RegisterCodes.J:
-                    return new Register(this, code, (ushort)code);
-
-                case RegisterCodes.A_Mem:
-                case RegisterCodes.B_Mem:
-                case RegisterCodes.C_Mem:
-                case RegisterCodes.X_Mem:
-                case RegisterCodes.Y_Mem:
-                case RegisterCodes.Z_Mem:
-                case RegisterCodes.I_Mem:
-                case RegisterCodes.J_Mem:
-                    return new Register(this, code, (ushort)Reg[r]);
-
-                case RegisterCodes.A_NextWord:
-                case RegisterCodes.B_NextWord:
-                case RegisterCodes.C_NextWord:
-                case RegisterCodes.X_NextWord:
-                case RegisterCodes.Y_NextWord:
-                case RegisterCodes.Z_NextWord:
-                case RegisterCodes.I_NextWord:
-                case RegisterCodes.J_NextWord:
-                    return new Register(this, code, (ushort)(Reg[r] + RAM[++PC]));
-
-                case RegisterCodes.POP:
-                    return new Register(this, code, (ushort)SP++);
-                case RegisterCodes.PEEK:
-                    return new Register(this, code, (ushort)SP);
-                case RegisterCodes.PUSH:
-                    return new Register(this, code, (ushort)--SP);
-                case RegisterCodes.SP:
-                    return new Register(this, code, (ushort)SP);
-                case RegisterCodes.PC:
-                    return new Register(this, code, (ushort)PC);
-                case RegisterCodes.O:
-                    return new Register(this, code, (ushort)O);
-                case RegisterCodes.NextWord_Literal_Mem:
-                    return new Register(this, code, (ushort)RAM[++PC]);
-                case RegisterCodes.NextWord_Literal_Value:
-                    return new Register(this, code, ++PC);
-
-                default:
-                    return new Register(this, RegisterCodes.Literal, (ushort)(code - 0x20));
-            }
-
-            throw new Exception("Invalid Op Code");
-        }
-    }
 
     public enum RegisterCodes : ushort
     {
@@ -220,4 +60,90 @@ namespace NotchCpu.Emulator
         // this is really handy for simple register initialization and incrementation, as we can encode it in as 
         // little as 1 word!
     }
+
+    public class Registers
+    {
+        public ushort SP;
+        public ushort PC;
+        public ushort O;
+
+        public ushort[] Reg = new ushort[8];
+        public ushort[] Ram = new ushort[65536];
+
+        public event MemUpdateHandler MemUpdateEvent;
+        public event MemUpdateHandler RegUpdateEvent;
+
+        public void MemUpdate(ushort loc, ushort val)
+        {
+            if (MemUpdateEvent != null)
+                MemUpdateEvent(loc, val);
+        }
+
+        public void RegUpdate(ushort loc, ushort val)
+        {
+            if (RegUpdateEvent != null)
+                RegUpdateEvent(loc, val);
+        }
+
+        public MemLoc Get(ushort code)
+        {
+            int r = (ushort)(((int)code) & 0x7);
+
+            switch ((RegisterCodes)code)
+            {
+                case RegisterCodes.A:
+                case RegisterCodes.B:
+                case RegisterCodes.C:
+                case RegisterCodes.X:
+                case RegisterCodes.Y:
+                case RegisterCodes.Z:
+                case RegisterCodes.I:
+                case RegisterCodes.J:
+                    return new MemLoc(this, code, (ushort)code);
+
+                case RegisterCodes.A_Mem:
+                case RegisterCodes.B_Mem:
+                case RegisterCodes.C_Mem:
+                case RegisterCodes.X_Mem:
+                case RegisterCodes.Y_Mem:
+                case RegisterCodes.Z_Mem:
+                case RegisterCodes.I_Mem:
+                case RegisterCodes.J_Mem:
+                    return new MemLoc(this, code, (ushort)Reg[r]);
+
+                case RegisterCodes.A_NextWord:
+                case RegisterCodes.B_NextWord:
+                case RegisterCodes.C_NextWord:
+                case RegisterCodes.X_NextWord:
+                case RegisterCodes.Y_NextWord:
+                case RegisterCodes.Z_NextWord:
+                case RegisterCodes.I_NextWord:
+                case RegisterCodes.J_NextWord:
+                    return new MemLoc(this, code, (ushort)(Reg[r] + Ram[++PC]));
+
+                case RegisterCodes.POP:
+                    return new MemLoc(this, code, (ushort)SP++);
+                case RegisterCodes.PEEK:
+                    return new MemLoc(this, code, (ushort)SP);
+                case RegisterCodes.PUSH:
+                    return new MemLoc(this, code, (ushort)--SP);
+                case RegisterCodes.SP:
+                    return new MemLoc(this, code, (ushort)SP);
+                case RegisterCodes.PC:
+                    return new MemLoc(this, code, (ushort)PC);
+                case RegisterCodes.O:
+                    return new MemLoc(this, code, (ushort)O);
+                case RegisterCodes.NextWord_Literal_Mem:
+                    return new MemLoc(this, code, (ushort)Ram[++PC]);
+                case RegisterCodes.NextWord_Literal_Value:
+                    return new MemLoc(this, code, ++PC);
+
+                default:
+                    return new MemLoc(this, RegisterCodes.Literal, (ushort)(code - 0x20));
+            }
+
+            throw new Exception("Invalid Op Code");
+        }
+    }
+
 }

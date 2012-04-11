@@ -50,6 +50,7 @@
     <Compile Include="MainUi.Designer.cs">
       <DependentUpon>MainUi.cs</DependentUpon>
     </Compile>
+    <Compile Include="MemLoc.cs" />
     <Compile Include="OpCodes.cs" />
     <Compile Include="Registers.cs" />
     <Compile Include="Properties\AssemblyInfo.cs" />

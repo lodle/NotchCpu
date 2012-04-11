@@ -14,7 +14,7 @@ namespace NotchCpu.Emulator
         static IProgram _Program = null;
 
         const long _TicksPerInstruction = 100 * 1000 / 60;
-        Stopwatch _Stopwatch = new Stopwatch(); 
+        
 
         public static void SetProgram(IProgram program)
         {
@@ -26,24 +26,26 @@ namespace NotchCpu.Emulator
             return _MainUi;
         }
 
-        public static void Run()
+        public static void Run(Registers reg)
         {
-            new Emu(_Program).RunProgram();
+            new Emu(_Program, reg).RunProgram();
         }
 
         Registers _Reg;
-        ushort [] _Screen = new ushort[384];
         ushort [] _Binary;
+        Stopwatch _Stopwatch = new Stopwatch();
 
-        public Emu(IProgram prog)
+        Random _Rand = new Random();
+
+        public Emu(IProgram prog, Registers reg)
         {
+            _Reg = reg;
             _Binary = _Program.GetDebugBinary();
         }
 
         public void RunProgram()
         {
-            _Reg = new Registers();
-            Array.Copy(_Binary, _Reg.RAM, _Binary.Length);
+            Array.Copy(_Binary, _Reg.Ram, _Binary.Length);
 
             ushort val;
             while (Step(out val))
@@ -53,7 +55,7 @@ namespace NotchCpu.Emulator
 
         private bool Step(out ushort value, bool ignore = false)
         {
-            var r = _Reg.RAM[_Reg.PC];
+            var r = _Reg.Ram[_Reg.PC];
 
             ushort o = (ushort)(r & 0xF);
             ushort a = (ushort)((r >> 4) & 0x3F);
@@ -73,12 +75,13 @@ namespace NotchCpu.Emulator
 
         public void RunOpCode(ushort opCode, ushort a, ushort b, out ushort aOut, bool ignore)
         {
+            System.GC.Collect();
+
             aOut = 0;
             var op = GetOpCode(opCode);
-            int cost = GetOpCodeCost(op);
+            long cost = GetOpCodeCost(op);
 
-   
-            _Stopwatch.Start();
+            _Stopwatch.Restart();
 
             if (op == OpCode.NB_OP)
             {
@@ -113,22 +116,28 @@ namespace NotchCpu.Emulator
                 }
             }
 
-            Array.Copy(_Reg.RAM, 0x8000, _Screen, 0, _Screen.Length);
-            _MainUi.SetConsoleText(_Screen);
+            cost *= _TicksPerInstruction;
 
-            while (_Stopwatch.ElapsedTicks < (_TicksPerInstruction * cost))
+            if (_Stopwatch.ElapsedTicks > cost)
             {
-                //chew some cycles
-                int t = a << 32 * 5 >> 32 / 5;
+                _MainUi.Log("Instruction {0} took longer than {1}", op, cost);
+            }
+            else
+            {
+                while (_Stopwatch.IsRunning && (_Stopwatch.ElapsedTicks < cost))
+                {
+                    //chew some cycles
+                    double t1 = _Rand.NextDouble() * _Rand.NextDouble();
+                    double t2 = t1 % 5;
+                    t1 = t1 % t2;
+                }
             }
 
             _Stopwatch.Stop();
-
-            Thread.Sleep(50);
         }
 
 
-        private void PerformAdvancedOperation(OpCode opCode, Register a)
+        private void PerformAdvancedOperation(OpCode opCode, MemLoc a)
         {
             switch (opCode)
             {
@@ -137,13 +146,13 @@ namespace NotchCpu.Emulator
                     ushort res;
                     Step(out res);
 
-                    _Reg.RAM[--_Reg.SP] = _Reg.PC;
+                    _Reg.Ram[--_Reg.SP] = _Reg.PC;
                     _Reg.PC = res;
                     break;
             }
         }
 
-        private int PerformOperation(OpCode opCode, Register a, Register b, out bool skip)
+        private int PerformOperation(OpCode opCode, MemLoc a, MemLoc b, out bool skip)
         {
             skip = false;
 

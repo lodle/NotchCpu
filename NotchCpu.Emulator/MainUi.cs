@@ -14,6 +14,8 @@ namespace NotchCpu.Emulator
     {
         Thread _Thread;
 
+        Registers _Reg;
+
         public MainUi()
         {
             InitializeComponent();
@@ -42,40 +44,39 @@ namespace NotchCpu.Emulator
                 var row = new DataGridViewRow();
 
                 for (int y = 0; y < 32; y++)
-                    row.Cells.Add(new DataGridViewTextBoxCell());
+                {
+                    var cell = new DataGridViewTextBoxCell();
+                    
+                    cell.Style.ForeColor = GetColor((char)0);
+                    cell.Style.BackColor = GetColor((char)0);
+                    row.Cells.Add(cell);
+                }
 
                 TextGridView.Rows.Add(row);
             }
         }
 
-        delegate void ConsoleTextHandler(ushort[] data);
-        public void SetConsoleText(ushort[] data)
+        delegate void ConsoleTextHandler(ushort x, ushort y, ushort value);
+        public void SetConsoleText(ushort x, ushort y, ushort val)
         {
             if (InvokeRequired)
             {
-                BeginInvoke(new ConsoleTextHandler(SetConsoleText), new object[] { data });
+                BeginInvoke(new ConsoleTextHandler(SetConsoleText), new object[] { x, y, val });
             }
             else
             {
-                for (int x = 0; x < 12; x++)
-                {
-                    for (int y = 0; y < 32; y++)
-                    {
-                        if (y * x >= data.Length)
-                            return;
+                if (y * x >= 0x180)
+                    return;
 
-                        var val = data[x * 32 + y];
-                        var cell = TextGridView.Rows[x].Cells[y];
+                var cell = TextGridView.Rows[x].Cells[y];
 
-                        if (val != 0)
-                            cell.Value = "" + (Char)(val & 0x00FF);
-                        else
-                            cell.Value = "";
+                if (val != 0)
+                    cell.Value = "" + (Char)(val & 0x00FF);
+                else
+                    cell.Value = "";
 
-                        cell.Style.ForeColor = GetColor((char)((val & 0xF000) >> 12));
-                        cell.Style.BackColor = GetColor((char)((val & 0x0F00) >> 8));
-                    }
-                }
+                cell.Style.ForeColor = GetColor((char)((val & 0xF000) >> 12));
+                cell.Style.BackColor = GetColor((char)((val & 0x0F00) >> 8));
             }
         }
 
@@ -90,10 +91,10 @@ namespace NotchCpu.Emulator
 
         private void ClearConsoleText()
         {
-            for (int x = 0; x < 13; x++)
+            for (ushort x = 0; x < 12; x++)
             {
-                for (int y = 0; y < 32; y++)
-                    TextGridView.Rows[x].Cells[y].Value = "";
+                for (ushort y = 0; y < 32; y++)
+                    SetConsoleText(x, y, 0);
             }
         }
 
@@ -109,14 +110,19 @@ namespace NotchCpu.Emulator
                 Log("Starting Emulator");
 
                 ButStartToggle.Text = "Stop";
+                ClearConsoleText();
 
                 _Thread = new Thread(() =>
                 {
                     var start = DateTime.Now;
 
+                    _Reg = new Registers();
+
+                    _Reg.MemUpdateEvent += new MemUpdateHandler(OnMemUpdate);
+
                     try
                     {
-                        Emu.Run();
+                        Emu.Run(_Reg);
                     }
                     catch (Exception ex)
                     {
@@ -131,6 +137,17 @@ namespace NotchCpu.Emulator
 
                 _Thread.Start();
             }
+        }
+
+        void OnMemUpdate(ushort loc, ushort value)
+        {
+            if (loc < 0x8000 || loc > 0x8180)
+                return;
+
+            var x = (loc - 0x8000)/32;
+            var y = (loc - 0x8000)%32;
+
+            SetConsoleText((ushort)x, (ushort)y, value);
         }
 
         delegate void FinishedHandler();
@@ -158,8 +175,13 @@ namespace NotchCpu.Emulator
             }
             else
             {
-                TBLog.AppendText(msg);
+                TBLog.AppendText(msg + Environment.NewLine);
             }
+        }
+
+        internal void Log(string p, params object[] parm)
+        {
+            Log(String.Format(p, parm));
         }
     }
 }
