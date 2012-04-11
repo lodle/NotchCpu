@@ -8,13 +8,16 @@ using System.Threading;
 
 namespace NotchCpu.Emulator
 {
+    public delegate void StepCompleteHandler(long ticks, long instruct);
+
     public class Emu
     {
         static MainUi _MainUi = new MainUi();
         static IProgram _Program = null;
 
-        const long _TicksPerInstruction = 100 * 1000 / 60;
-        
+        const long _TicksPerInstruction = TimeSpan.TicksPerSecond / (100 * 1000);
+
+        public static double SpeedMultiplier = 1.0;
 
         public static void SetProgram(IProgram program)
         {
@@ -26,10 +29,8 @@ namespace NotchCpu.Emulator
             return _MainUi;
         }
 
-        public static void Run(Registers reg)
-        {
-            new Emu(_Program, reg).RunProgram();
-        }
+
+        public event StepCompleteHandler StepCompleteEvent;
 
         Registers _Reg;
         ushort [] _Binary;
@@ -37,20 +38,26 @@ namespace NotchCpu.Emulator
 
         Random _Rand = new Random();
 
-        public Emu(IProgram prog, Registers reg)
+        public Emu(Registers reg)
         {
             _Reg = reg;
             _Binary = _Program.GetDebugBinary();
+
+            Array.Copy(_Binary, _Reg.Ram, _Binary.Length);
         }
 
         public void RunProgram()
         {
-            Array.Copy(_Binary, _Reg.Ram, _Binary.Length);
-
             ushort val;
             while (Step(out val))
             {
             }
+        }
+
+        public void Step()
+        {
+            ushort val;
+            Step(out val);
         }
 
         private bool Step(out ushort value, bool ignore = false)
@@ -81,7 +88,8 @@ namespace NotchCpu.Emulator
             var op = GetOpCode(opCode);
             long cost = GetOpCodeCost(op);
 
-            _Stopwatch.Restart();
+            if (!ignore)
+                _Stopwatch.Restart();
 
             if (op == OpCode.NB_OP)
             {
@@ -116,24 +124,40 @@ namespace NotchCpu.Emulator
                 }
             }
 
-            cost *= _TicksPerInstruction;
+            if (ignore)
+                return;
 
-            if (_Stopwatch.ElapsedTicks > cost)
+            var elapse = _Stopwatch.Elapsed.Ticks;
+            var total = (long)(_TicksPerInstruction * SpeedMultiplier * cost);
+
+            if (elapse > total)
             {
-                _MainUi.Log("Instruction {0} took longer than {1}", op, cost);
+                //_MainUi.Log("Instruction {0} took longer than {1}", op, cost);
             }
             else
             {
-                while (_Stopwatch.IsRunning && (_Stopwatch.ElapsedTicks < cost))
+                while (true)
                 {
+                    if (!_Stopwatch.IsRunning)
+                        Debug.WriteLine("Stopwatch stopped. :( Op: {0} Pc: {1}", op, _Reg.PC);
+
+                    elapse = _Stopwatch.Elapsed.Ticks;
+
+                    if (!_Stopwatch.IsRunning || (elapse > total))
+                        break;
+
                     //chew some cycles
-                    double t1 = _Rand.NextDouble() * _Rand.NextDouble();
-                    double t2 = t1 % 5;
-                    t1 = t1 % t2;
+                    Thread.SpinWait((int)(total - elapse));
                 }
             }
 
             _Stopwatch.Stop();
+            
+            //if (cost != 0)
+            //    Debug.WriteLine("{0} of {1}", TimeSpan.FromTicks(elapse / cost).Milliseconds, TimeSpan.FromTicks(total / cost).Milliseconds);
+
+            if (StepCompleteEvent != null && cost != 0)
+                StepCompleteEvent(elapse, cost);
         }
 
 
@@ -249,5 +273,6 @@ namespace NotchCpu.Emulator
 
             return 0;
         }
+
     }
 }

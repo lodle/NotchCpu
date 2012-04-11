@@ -21,6 +21,7 @@ namespace NotchCpu.EmuTest
             Application.EnableVisualStyles();
             Application.SetCompatibleTextRenderingDefault(false);
 
+#if !DEBUG
             var browser = new OpenFileDialog();
             browser.Filter = "bin files (*.bin, *.obj)|*.txt;*.obj|All files (*.*)|*.*" ;
             browser.InitialDirectory = Directory.GetCurrentDirectory();
@@ -29,6 +30,9 @@ namespace NotchCpu.EmuTest
                 return;
 
             _File = browser.FileName;
+#else
+            _File = "helloworld.obj";
+#endif
 
             Emu.SetProgram(new Program());
             Application.Run(Emu.GetMainForm());
@@ -38,7 +42,7 @@ namespace NotchCpu.EmuTest
 
         public Program()
         {
-            var bytes = File.ReadAllBytes("helloworld.obj");
+            var bytes = File.ReadAllBytes(_File);
 
             _Binary = new ushort[bytes.Length / 2];
 
@@ -53,7 +57,6 @@ namespace NotchCpu.EmuTest
 
         public bool PreStep(Registers reg, ushort o, ushort a, ushort b)
         {
-            Debug.WriteLine("PC: {0:X} A: {1:X} B: {2:X} I: {3:X} J: {4:X}", reg.PC, reg.Reg[0], reg.Reg[1], reg.Reg[6], reg.Reg[7]);
             return true;
         }
 

@@ -7,6 +7,7 @@ using System.Linq;
 using System.Text;
 using System.Windows.Forms;
 using System.Threading;
+using System.Diagnostics;
 
 namespace NotchCpu.Emulator
 {
@@ -16,9 +17,41 @@ namespace NotchCpu.Emulator
 
         Registers _Reg;
 
+        String[] _RegNames = new string[] {"A", "B", "C", "X", "Y", "Z", "I", "J", "PC", "SP", "O" };
+        double[] _Speeds = new double[] 
+        { 
+            0.5,    // 200 khz
+            1.0,    // 100 khz
+            2.0,    // 50 khz
+            10.0,   // 10 khz
+            100.0,  // 1 khz
+            200.0,  // 500 hz 
+            10000.0 // 10 hz
+        };
+
+        char _TickCount;
+        long _AvgTicks;
+        long _AvgMs;
+
+        Emu _Emu;
+
+        int _LastReg = 0;
+        private bool _IgnoreHightlight;
+
+        private bool ShowSelect;
+
         public MainUi()
         {
             InitializeComponent();
+
+            foreach (var reg in _RegNames)
+            {
+                var item = new System.Windows.Forms.ListViewItem(new string[] { reg, "0x0000" }, -1);
+                this.listView1.Items.Add(item);
+            }
+
+            CBSpeed.SelectedIndex = _Speeds.Length-1;
+            Emu.SpeedMultiplier = _Speeds[CBSpeed.SelectedIndex];
         }
 
         private void MainUi_Load(object sender, EventArgs e)
@@ -49,6 +82,8 @@ namespace NotchCpu.Emulator
                     
                     cell.Style.ForeColor = GetColor((char)0);
                     cell.Style.BackColor = GetColor((char)0);
+                    cell.Style.Font = new Font(new FontFamily("Courier New"), 11, FontStyle.Regular);
+
                     row.Cells.Add(cell);
                 }
 
@@ -77,6 +112,12 @@ namespace NotchCpu.Emulator
 
                 cell.Style.ForeColor = GetColor((char)((val & 0xF000) >> 12));
                 cell.Style.BackColor = GetColor((char)((val & 0x0F00) >> 8));
+
+                if (ShowSelect)
+                {
+                    TextGridView.ClearSelection();
+                    cell.Selected = true;
+                }
             }
         }
 
@@ -96,6 +137,8 @@ namespace NotchCpu.Emulator
                 for (ushort y = 0; y < 32; y++)
                     SetConsoleText(x, y, 0);
             }
+
+            TextGridView.ClearSelection();
         }
 
         private void ButStartToggle_Click(object sender, EventArgs e)
@@ -112,30 +155,53 @@ namespace NotchCpu.Emulator
                 ButStartToggle.Text = "Stop";
                 ClearConsoleText();
 
+                if (_Emu == null)
+                    InitProg();
+
                 _Thread = new Thread(() =>
                 {
                     var start = DateTime.Now;
 
-                    _Reg = new Registers();
-
-                    _Reg.MemUpdateEvent += new MemUpdateHandler(OnMemUpdate);
-
                     try
                     {
-                        Emu.Run(_Reg);
+                        _Emu.RunProgram();
+
+                        var time = DateTime.Now - start;
+
+                        Log("Done in " + time.ToString());
+                        FinishedEmulation();
                     }
                     catch (Exception ex)
                     {
                         Log("Emulator threw exception: " + ex.Message);
+                        FinishedEmulation();
                     }
-
-                    var time = DateTime.Now - start;
-
-                    Log("Done in " + time.ToString());
-                    FinishedEmulation();
                 });
 
                 _Thread.Start();
+            }
+        }
+
+        private void InitProg()
+        {
+            _Reg = new Registers();
+            _Emu = new Emu(_Reg);
+
+            _Emu.StepCompleteEvent += new StepCompleteHandler(OnStepComplete);
+            _Reg.MemUpdateEvent += new MemUpdateHandler(OnMemUpdate);
+
+            _LastReg = 0;
+
+            OnSpeedChanged(null, null);
+            ClearConsoleText();
+
+            if (_LastReg != -1)
+            {
+                foreach (ListViewItem item in listView1.Items)
+                {
+                    item.BackColor = Color.White;
+                    item.SubItems[1].Text = String.Format("0x{0,4:X4}", 0);
+                }
             }
         }
 
@@ -150,6 +216,33 @@ namespace NotchCpu.Emulator
             SetConsoleText((ushort)x, (ushort)y, value);
         }
 
+        void OnRegUpdate(ushort loc, ushort value)
+        {
+            if (InvokeRequired)
+            {
+                BeginInvoke(new MemUpdateHandler(OnRegUpdate), new object[] { loc, value });
+            }
+            else
+            {
+                if (_LastReg == -1)
+                {
+                    foreach (ListViewItem item in listView1.Items)
+                        item.SubItems[1].Text = String.Format("0x{0,4:X4}", 0);
+                }
+
+                if (!_IgnoreHightlight)
+                {
+                    if (_LastReg != -1)
+                        listView1.Items[_LastReg].BackColor = Color.White;
+
+                    listView1.Items[loc].BackColor = Color.LightBlue;
+                    _LastReg = loc;
+                }
+
+                listView1.Items[loc].SubItems[1].Text = String.Format("0x{0,4:X4}", value);
+            }
+        }
+
         delegate void FinishedHandler();
         private void FinishedEmulation()
         {
@@ -159,9 +252,22 @@ namespace NotchCpu.Emulator
             }
             else
             {
-                _Thread = null;
+                int x = 0;
+                foreach (ListViewItem item in listView1.Items)
+                {
+                    if (x < 8)
+                        item.SubItems[1].Text = String.Format("0x{0,4:X4}", _Reg.Reg[x]);
+                    else if (x == 8)
+                        item.SubItems[1].Text = String.Format("0x{0,4:X4}", _Reg.PC);
+                    else if (x == 9)
+                        item.SubItems[1].Text = String.Format("0x{0,4:X4}", _Reg.SP);
+                    else if (x == 10)
+                        item.SubItems[1].Text = String.Format("0x{0,4:X4}", _Reg.O);
 
-                ClearConsoleText();
+                    x++;
+                }
+
+                _Thread = null;
                 ButStartToggle.Text = "Start";
             }
         }
@@ -182,6 +288,93 @@ namespace NotchCpu.Emulator
         internal void Log(string p, params object[] parm)
         {
             Log(String.Format(p, parm));
+        }
+
+        private void ButStep_Click(object sender, EventArgs e)
+        {
+            if (_Emu == null)
+                InitProg();
+
+            _Emu.Step();
+
+            _IgnoreHightlight = true;
+
+            OnRegUpdate((ushort)8, _Reg.PC);
+            OnRegUpdate((ushort)7, _Reg.SP);
+            OnRegUpdate((ushort)9, _Reg.O);
+
+            _IgnoreHightlight = false;
+        }
+
+        private void ButReset_Click(object sender, EventArgs e)
+        {
+            if (_Thread != null)
+                ButStartToggle_Click(null, null);
+
+            InitProg();
+        }
+
+        private void OnSpeedChanged(object sender, EventArgs e)
+        {
+            Emu.SpeedMultiplier = _Speeds[CBSpeed.SelectedIndex];
+            _AvgTicks = 0;
+
+            ShowSelect = CBSpeed.SelectedIndex >= _Speeds.Length - 2;
+
+            if (!ShowSelect)
+            {
+                if (_LastReg != -1)
+                {
+                    foreach (ListViewItem item in listView1.Items)
+                    {
+                        item.BackColor = Color.White;
+                        item.SubItems[1].Text = "";
+                    }
+
+                    _LastReg = -1;
+                }
+
+                if (_Reg != null)
+                    _Reg.RegUpdateEvent -= new MemUpdateHandler(OnRegUpdate);
+            }
+            else if (_Reg != null)
+                _Reg.RegUpdateEvent += new MemUpdateHandler(OnRegUpdate);
+        }
+
+        private void OnStepComplete(long ticks, long instruct)
+        {
+            if (InvokeRequired)
+            {
+                BeginInvoke(new StepCompleteHandler(OnStepComplete), new object[] { ticks, instruct });
+            }
+            else
+            {
+                if (_AvgTicks != 0)
+                {
+                    var temp = (long)(ticks / Emu.SpeedMultiplier / instruct);
+
+                    _AvgTicks += temp;
+                    _AvgTicks /= 2;
+                }
+                else
+                {
+                    _AvgTicks += ticks;
+                }
+
+                var mod = (10000 / _Speeds[CBSpeed.SelectedIndex]);
+
+                if (_TickCount % mod == 0)
+                {
+                    long herz = (long)(TimeSpan.TicksPerSecond / (_AvgTicks * Emu.SpeedMultiplier));
+
+                    if (herz > 1000)
+                        TBSpeed.Text = String.Format("{0} kHz", herz / 1000);
+                    else
+                        TBSpeed.Text = String.Format("{0} Hz", herz);
+                }
+
+                _TickCount++;
+            }
         }
     }
 }
