@@ -15,11 +15,10 @@ namespace Tester
             NotchCpuCompilerTask compiler = new NotchCpuCompilerTask();
 
             compiler.SourceFiles = new String[] { "NotchTest.cs" };
-            compiler.OutputAssembly = "Out.exe";
+            compiler.OutputAssembly = "CompilerTest.exe";
             compiler.ProjectPath = Directory.GetCurrentDirectory();
 
             compiler.WriteToConsole = true;
-
             compiler.Execute();
 
 
@@ -47,12 +46,7 @@ namespace Tester
             //}
 
             //var root = new ClassNode();
-            //var asm = root.CompileCli("test.exe", byteCode, null);
-
-            
-            //asm.Save("test.exe", PortableExecutableKinds.Required32Bit, ImageFileMachine.I386);
-            
-
+            //root.CompileCli("abc.exe", byteCode, null);
         }
     }
 }

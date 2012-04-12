@@ -192,6 +192,8 @@ namespace NotchCpu.Emulator
 
             _LastReg = 0;
 
+            TBLog.Text = "";
+
             OnSpeedChanged(null, null);
             ClearConsoleText();
 

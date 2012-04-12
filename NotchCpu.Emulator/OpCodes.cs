@@ -31,6 +31,6 @@ namespace NotchCpu.Emulator
         // Basically unlike basic instructions, we lose a register spot and use that for the op code.
         // the old op code is zeroed out (which signals a non basic instruction). This means 
         // any non basic instruction, even if its something like derp X, Y will use 2 words (unlike a basic instruction in that case)
-        JSR_OP = 0x10
+        JSR_OP = 0x01
     }
 }

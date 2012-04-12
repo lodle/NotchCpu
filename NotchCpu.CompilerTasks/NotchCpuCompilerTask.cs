@@ -6,6 +6,7 @@ using Microsoft.Build.Utilities;
 using Microsoft.Build.Framework;
 using System.IO;
 using Irony.Parsing;
+using System.Reflection;
 
 namespace NotchCpu.CompilerTasks
 {
@@ -30,8 +31,11 @@ namespace NotchCpu.CompilerTasks
 
         public bool WriteToConsole { get; set; }
 
+        public bool ShowSourceInAsm { get; set; }
+
         public NotchCpuCompilerTask()
         {
+            ShowSourceInAsm = true;
         }
 
         public override bool Execute()
@@ -53,56 +57,113 @@ namespace NotchCpu.CompilerTasks
 
             try
             {
-                root.CompileMain(assembly, scope, DCPUC.Register.DISCARD);
-                assembly.Add("BRK", "", "", "Non-standard");
-
-                //foreach (var pendingFunction in scope.pendingFunctions)
-                //    pendingFunction.CompileFunction(assembly);
-
-                foreach (var dataItem in DCPUC.Scope.dataElements)
-                {
-                    assembly.Add(":" + dataItem.Item1, "", "");
-                    var datString = "";
-
-                    foreach (var item in dataItem.Item2)
-                    {
-                        datString += DCPUC.CompilableNode.hex(item);
-                        datString += ", ";
-                    }
-
-                    assembly.Add("DAT", datString.Substring(0, datString.Length - 2), "");
-                }
+                DoCompile(root, assembly, scope);
+                return true;
             }
             catch (DCPUC.CompileError c)
             {
                 LogError(c.Message);
                 return false;
             }
+        }
 
-            var outFile = OutputAssembly.Replace(".exe", ".dcpu");
+        private void DoCompile(ClassNode root, DCPUC.Assembly assembly, DCPUC.Scope scope)
+        {
+            ParseSource(root, assembly, scope);
 
-            using (var fh = File.CreateText(outFile))
+            var outAsm = OutputAssembly.Replace(".exe", ".dcpu");
+            var outBin = OutputAssembly.Replace(".exe", ".bin");
+
+            Dictionary<ushort, List<DCPUC.Anotation>> ano = new Dictionary<ushort,List<DCPUC.Anotation>>();
+
+            String[] asm = GenerateAsm(assembly, ref ano);
+            SaveAsm(asm, outAsm);
+
+            byte[] bin = CDCPU16Assemble.Assemble(asm, ref ano);
+            SaveBin(bin, outBin);
+
+            //Swap them for cli as it stores them backwards
+            for (int x = 0; x < bin.Length; x+=2)
             {
-                foreach (var str in assembly.instructions)
-                {
-                    if (str.Ignore)
-                        continue;
+                byte a = bin[x];
+                bin[x] = bin[x + 1];
+                bin[x + 1] = a;
+            }
 
+            GenerateCli(root, bin, ano);
+
+            LogMessage("Asm file location: " + outAsm);
+            LogMessage("Bin file location: " + outBin);
+        }
+
+        private void GenerateCli(ClassNode root, byte[] bin, Dictionary<ushort, List<DCPUC.Anotation>> ano)
+        {
+            root.CompileCli(OutputAssembly, bin, ano);
+        }
+
+        private String[] GenerateAsm(DCPUC.Assembly assembly, ref Dictionary<ushort, List<DCPUC.Anotation>> ano)
+        {
+            List<String> ret = new List<string>();
+
+            foreach (var str in assembly.instructions)
+            {
+                if (str.Ignore)
+                    continue;
+
+                if (ShowSourceInAsm && str.anotation != null)
+                {
                     var anno = str.anotation.ToString();
 
                     if (!String.IsNullOrEmpty(anno))
                     {
-                        fh.WriteLine(";");
-                        fh.WriteLine(";\t" + SourceFiles[0] + anno);
-                        fh.WriteLine(";");
+                        ret.Add(";");
+                        ret.Add(";\t" + SourceFiles[0] + anno);
+                        ret.Add(";");
                     }
-
-                    fh.WriteLine(str.ToString());
                 }
+
+                ret.Add(str.ToString());
             }
 
-            LogMessage("Out file location: " + outFile);
-            return true;
+            return ret.ToArray();
+        }
+
+        private static void ParseSource(ClassNode root, DCPUC.Assembly assembly, DCPUC.Scope scope)
+        {
+            root.CompileMain(assembly, scope, DCPUC.Register.DISCARD);
+            assembly.Add("SUB", "PC", "1", "Non-standard");
+
+            //foreach (var pendingFunction in scope.pendingFunctions)
+            //    pendingFunction.CompileFunction(assembly);
+
+            foreach (var dataItem in DCPUC.Scope.dataElements)
+            {
+                assembly.Add(":" + dataItem.Item1, "", "");
+                var datString = "";
+
+                foreach (var item in dataItem.Item2)
+                {
+                    datString += DCPUC.CompilableNode.hex(item);
+                    datString += ", ";
+                }
+
+                assembly.Add("DAT", datString.Substring(0, datString.Length - 2), "");
+            }
+        }
+
+        private void SaveAsm(String[] asm, string outAsmFile)
+        {
+            File.WriteAllLines(outAsmFile, asm);
+        }
+
+        public void SaveBin(byte[] bin, string outBinFile)
+        {
+            MemoryStream outfile = new MemoryStream();
+
+            foreach (byte b in bin)
+                outfile.WriteByte(b);
+
+            File.WriteAllBytes(outBinFile, outfile.ToArray());
         }
 
         void LogMessage(string message)

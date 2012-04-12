@@ -73,6 +73,8 @@ namespace NotchCpu.Emulator
             if (!ignore && !_Program.PreStep(_Reg, o, a, b))
                 return false;
 
+            _MainUi.Log(String.Format("PC: {0,2:X} SP: {1,2:X}, A: {2,2:X} B: {3,2:X} C: {4,2:X} I: {5,2:X} J: {6,2:X}", _Reg.PC, _Reg.SP, _Reg.Reg[0], _Reg.Reg[1], _Reg.Reg[2], _Reg.Reg[6], _Reg.Reg[7]));
+
             RunOpCode(o, a, b, out value, ignore);
 
             _Reg.PC++;
@@ -86,7 +88,7 @@ namespace NotchCpu.Emulator
 
             aOut = 0;
             var op = GetOpCode(opCode);
-            long cost = GetOpCodeCost(op);
+            long cost = 0;
 
             if (!ignore)
                 _Stopwatch.Restart();
@@ -95,9 +97,12 @@ namespace NotchCpu.Emulator
             {
                 var ra = _Reg.Get(b);
                 PerformAdvancedOperation(GetOpCode(a), ra);
+                cost = GetOpCodeAdvancedCost(op);
             }
             else
             {
+                cost = GetOpCodeCost(op);
+
                 bool skip = false;
 
                 var ra = _Reg.Get(a);
@@ -166,8 +171,8 @@ namespace NotchCpu.Emulator
             switch (opCode)
             {
                case OpCode.JSR_OP:
-                    _Reg.Ram[--_Reg.SP] = _Reg.PC;
-                    _Reg.PC = a.Value;
+                    _Reg.Ram[--_Reg.SP] = (ushort)(_Reg.PC+1);
+                    _Reg.PC = (ushort)(a.Value-1);
                     break;
             }
         }
@@ -228,7 +233,6 @@ namespace NotchCpu.Emulator
                     return -1;
 
                 case OpCode.NB_OP:
-                case OpCode.JSR_OP:
                     return -1;
             }
 
@@ -238,6 +242,17 @@ namespace NotchCpu.Emulator
         private OpCode GetOpCode(ushort opCode)
         {
             return (OpCode)opCode;
+        }
+
+        private int GetOpCodeAdvancedCost(OpCode opCode)
+        {
+            switch (opCode)
+            {
+                case OpCode.JSR_OP:
+                    return 2;
+            }
+
+            return 0;
         }
 
         private int GetOpCodeCost(OpCode opCode)
@@ -265,10 +280,7 @@ namespace NotchCpu.Emulator
                 case OpCode.IFE_OP:
                 case OpCode.IFG_OP:
                 case OpCode.IFN_OP:
-                    return 2;
-
-                case OpCode.JSR_OP:
-                    return 2;                    
+                    return 2;                
             }
 
             return 0;
