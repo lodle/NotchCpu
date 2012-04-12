@@ -35,10 +35,10 @@ namespace DCPUC
             {
                 var hexPart = AsString.Substring(2).ToUpper();
                 while (hexPart.Length < 4) hexPart = "0" + hexPart;
-                assembly.Add("SET", Scope.GetRegisterLabelFirst((int)target), "0x" + hexPart, "Literal");
+                assembly.Add(new Instruction("SET", Scope.GetRegisterLabelFirst((int)target), "0x" + hexPart, "Literal"));
             }
             else
-                assembly.Add("SET", Scope.GetRegisterLabelFirst((int)target), hex(AsString), "Literal");
+                assembly.Add(new Instruction("SET", Scope.GetRegisterLabelFirst((int)target), hex(AsString), "Literal"));
             if (target == Register.STACK) scope.stackDepth += 1;
         }
     }

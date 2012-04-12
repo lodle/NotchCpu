@@ -13,15 +13,26 @@ namespace DCPUC
             base.Init(context, treeNode);
             AddChild("value", treeNode.ChildNodes[1]);
             this.AsString = treeNode.FindTokenAndGetText();
+
+            anotation = new Anotation(context, treeNode);
         }
 
         public override void Compile(Assembly assembly, Scope scope, Register target)
         {
             var reg = scope.FindAndUseFreeRegister();
             (ChildNodes[0] as CompilableNode).Compile(assembly, scope, (Register)reg);
-            if (reg != (int)Register.A) assembly.Add("SET", "A", Scope.GetRegisterLabelSecond(reg));
+
+            int aid = assembly.PushAnotation(anotation);
+
+            if (reg != (int)Register.A) 
+                assembly.Add(new Instruction("SET", "A", Scope.GetRegisterLabelSecond(reg)));
+
             scope.FreeMaybeRegister(reg);
-            if (reg == (int)Register.STACK) scope.stackDepth -= 1;
+
+            if (reg == (int)Register.STACK) 
+                scope.stackDepth -= 1;
+
+            assembly.PopAnotation(aid);
             scope.activeFunction.CompileReturn(assembly, scope);
         }
     }

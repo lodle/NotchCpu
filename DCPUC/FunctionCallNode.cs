@@ -14,6 +14,8 @@ namespace DCPUC
             AsString = treeNode.ChildNodes[0].FindTokenAndGetText();
             foreach (var parameter in treeNode.ChildNodes[1].ChildNodes)
                 AddChild("parameter", parameter);
+
+            anotation = new Anotation(context, treeNode);
         }
 
         protected virtual FunctionDeclarationNode findFunction(AstNode node, string name)
@@ -34,6 +36,8 @@ namespace DCPUC
 
         public override void Compile(Assembly assembly, Scope scope, Register target)
         {
+            var aid = assembly.PushAnotation(anotation);
+
             var func = findFunction(this, AsString);
             if (func == null) throw new CompileError("Can't find function - " + AsString);
             if (func.parameterCount != ChildNodes.Count) throw new CompileError("Incorrect number of arguments - " + AsString);
@@ -100,6 +104,8 @@ namespace DCPUC
                 assembly.Add("SET", "PUSH", saveA ? Scope.TempRegister : "A", "Put return value on stack");
                 scope.stackDepth += 1;
             }
+
+            assembly.PopAnotation(aid);
         }
 
         

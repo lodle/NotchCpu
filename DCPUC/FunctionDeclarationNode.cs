@@ -51,6 +51,8 @@ namespace DCPUC
             this.AsString = treeNode.ChildNodes[1].FindTokenAndGetText();
             label = Scope.GetLabel() + "_" + AsString;
             localScope.activeFunction = this;
+
+            anotation = new Anotation(context, treeNode);
         }
 
         public override void Compile(Assembly assembly, Scope scope, Register target)
@@ -60,13 +62,18 @@ namespace DCPUC
 
         public virtual void CompileFunction(Assembly assembly)
         {
+            var aid = assembly.PushAnotation(anotation);
+
             var lScope = localScope.Push(new Scope());
             assembly.Add(":" + label, "", "");
             assembly.Barrier();
             lScope.stackDepth += 1; //account for return address
             (ChildNodes[0] as CompilableNode).Compile(assembly, lScope, Register.DISCARD);
             CompileReturn(assembly, lScope);
+
             assembly.Barrier();
+            assembly.PopAnotation(aid);
+
             //Should leave the return value, if any, in A.
             foreach (var function in lScope.pendingFunctions)
                 function.CompileFunction(assembly);

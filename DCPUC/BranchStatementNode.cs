@@ -3,6 +3,7 @@ using System.Collections.Generic;
 using System.Linq;
 using System.Text;
 using Irony.Interpreter.Ast;
+using Irony.Parsing;
 
 namespace DCPUC
 {
@@ -146,13 +147,13 @@ namespace DCPUC
             throw new CompileError("Impossible situation reached");
         }
 
-        public static void CompileBlock(Assembly assembly, Scope scope, CompilableNode block)
+        public static void CompileBlock(Assembly assembly, Scope scope, CompilableNode block, SourceSpan span)
         {
-            var blockScope = BeginBlock(scope);
+            var blockScope = BeginBlock(assembly, scope, span);
             assembly.Barrier();
             block.Compile(assembly, blockScope, Register.DISCARD);
             assembly.Barrier();
-            EndBlock(assembly, blockScope);
+            EndBlock(assembly, blockScope, span);
         }
 
         

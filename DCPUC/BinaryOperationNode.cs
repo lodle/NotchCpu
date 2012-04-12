@@ -31,6 +31,8 @@ namespace DCPUC
                 opcodes.Add("|", "BOR");
                 opcodes.Add("^", "XOR");
             }
+
+            anotation = new Anotation(context, treeNode);
         }
 
         public override bool IsConstant()
@@ -58,6 +60,8 @@ namespace DCPUC
 
         public override void Compile(Assembly assembly, Scope scope, Register target)
         {
+            var aid = assembly.PushAnotation(anotation);
+
             int secondTarget = (int)Register.STACK;
 
             var secondConstant = (ChildNodes[1] as CompilableNode).IsConstant();
@@ -100,6 +104,8 @@ namespace DCPUC
                 scope.stackDepth -= 1;
             else
                 scope.FreeMaybeRegister(secondTarget);
+
+            assembly.PopAnotation(aid);
         }
     }
 

@@ -25,7 +25,7 @@ namespace DCPUC
 
             if (clauseOrder == ClauseOrder.ConstantPass)
             {
-                CompileBlock(assembly, scope, ChildNodes[1] as CompilableNode);
+                CompileBlock(assembly, scope, ChildNodes[1] as CompilableNode, anotation.span);
                 assembly.Add("SET", "PC", topLabel);
             }
             else if (clauseOrder == ClauseOrder.ConstantFail)
@@ -35,7 +35,7 @@ namespace DCPUC
             {
                 var endLabel = Scope.GetLabel() + "END";
                 assembly.Add("SET", "PC", endLabel);
-                CompileBlock(assembly, scope, ChildNodes[1] as CompilableNode);
+                CompileBlock(assembly, scope, ChildNodes[1] as CompilableNode, anotation.span);
                 assembly.Add("SET", "PC", topLabel);
                 assembly.Add(":" + endLabel, "", "");
             }
@@ -46,7 +46,7 @@ namespace DCPUC
                 assembly.Add("SET", "PC", elseLabel);
                 assembly.Add("SET", "PC", endLabel);
                 assembly.Add(":" + elseLabel, "", "");
-                CompileBlock(assembly, scope, ChildNodes[1] as CompilableNode);
+                CompileBlock(assembly, scope, ChildNodes[1] as CompilableNode, anotation.span);
                 assembly.Add("SET", "PC", topLabel);
                 assembly.Add(":" + endLabel, "", "");
             }

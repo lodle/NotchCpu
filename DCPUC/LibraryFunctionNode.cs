@@ -16,7 +16,7 @@ namespace DCPUC
             foreach (var line in code)
             {
                 assembly.Barrier();
-                assembly.Add(line, "", "");
+                assembly.Add(new Instruction(line, "", ""));
             }
         }
 

@@ -22,16 +22,16 @@ namespace DCPUC
             {
                 if (scope.stackDepth - variable.stackOffset > 1)
                 {
-                    assembly.Add("SET", Scope.TempRegister, "SP");
-                    assembly.Add("SET", Scope.GetRegisterLabelFirst((int)target), "[" + hex(scope.stackDepth - variable.stackOffset - 1) + "+" + Scope.TempRegister + "]", "Fetching variable");
+                    assembly.Add(new Instruction("SET", Scope.TempRegister, "SP"));
+                    assembly.Add(new Instruction("SET", Scope.GetRegisterLabelFirst((int)target), "[" + hex(scope.stackDepth - variable.stackOffset - 1) + "+" + Scope.TempRegister + "]", "Fetching variable"));
                 }
                 else
-                    assembly.Add("SET", Scope.GetRegisterLabelFirst((int)target), "PEEK", "Fetching variable");
+                    assembly.Add(new Instruction("SET", Scope.GetRegisterLabelFirst((int)target), "PEEK", "Fetching variable"));
             }
             else
             {
                 if (target == variable.location) return;
-                assembly.Add("SET", Scope.GetRegisterLabelFirst((int)target), Scope.GetRegisterLabelSecond((int)variable.location), "Fetching variable");
+                assembly.Add(new Instruction("SET", Scope.GetRegisterLabelFirst((int)target), Scope.GetRegisterLabelSecond((int)variable.location), "Fetching variable"));
             }
             if (target == Register.STACK) scope.stackDepth += 1;
         }

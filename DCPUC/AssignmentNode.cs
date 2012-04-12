@@ -13,10 +13,14 @@ namespace DCPUC
             base.Init(context, treeNode);
             AddChild("LValue", treeNode.ChildNodes[0].ChildNodes[0]);
             AddChild("RValue", treeNode.ChildNodes[2]);
+
+            anotation = new Anotation(context, treeNode);
         }
 
         public override void Compile(Assembly assembly, Scope scope, Register target)
         {
+            var aid = assembly.PushAnotation(anotation);
+
             if (ChildNodes[0] is VariableNameNode)
             {
                 var variable = scope.FindVariable(ChildNodes[0].AsString);
@@ -94,6 +98,8 @@ namespace DCPUC
                     }
                 }
             }
+
+            assembly.PopAnotation(aid);
         }
     }
 

@@ -3,14 +3,23 @@ using System.Collections.Generic;
 using System.Linq;
 using System.Text;
 using Irony.Interpreter.Ast;
+using Irony.Parsing;
 
 namespace DCPUC
 {
     public class CompilableNode : AstNode
     {
+        protected Anotation anotation;
+
         public virtual void Compile(Assembly assembly, Scope scope, Register target) { throw new NotImplementedException(); }
         public virtual bool IsConstant() { return false; }
         public virtual ushort GetConstantValue() { return 0; }
+
+        public override void Init(Irony.Parsing.ParsingContext context, Irony.Parsing.ParseTreeNode treeNode)
+        {
+            base.Init(context, treeNode);
+            anotation = new Anotation(context, treeNode);
+        }
 
         private static string hexDigits = "0123456789ABCDEF";
         public static String htoa(int x)
@@ -40,15 +49,25 @@ namespace DCPUC
         public static String hex(int x) { return "0x" + htoa(x); }
         public static String hex(string x) { return "0x" + htoa(Convert.ToInt16(x)); }
 
-        public static Scope BeginBlock(Scope scope)
+        public static Scope BeginBlock(Assembly assembly, Scope scope, SourceSpan span)
         {
+            var aid = assembly.PushAnotation(new Anotation(span));
+            assembly.Add(new Instruction());
+            assembly.PopAnotation(aid);
+
             return scope.Push(new Scope());
         }
 
-        public static void EndBlock(Assembly assembly, Scope scope)
+        public static void EndBlock(Assembly assembly, Scope scope, SourceSpan span)
         {
-            if (scope.stackDepth - scope.parentDepth > 0) 
-                assembly.Add("ADD", "SP", hex(scope.stackDepth - scope.parentDepth), "End block");
+            var aid = assembly.PushAnotation(new Anotation(span));
+
+            if (scope.stackDepth - scope.parentDepth > 0)
+                assembly.Add(new Instruction("ADD", "SP", hex(scope.stackDepth - scope.parentDepth), "End block"));
+            else
+                assembly.Add(new Instruction());
+
+            assembly.PopAnotation(aid);
         }
 
         public void InsertLibrary(List<string> library)

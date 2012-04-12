@@ -3,6 +3,7 @@ using System.Collections.Generic;
 using System.Linq;
 using System.Text;
 using Irony.Interpreter.Ast;
+using Irony.Parsing;
 
 namespace DCPUC
 {
@@ -155,13 +156,13 @@ namespace DCPUC
             throw new CompileError("Impossible situation reached");
         }
 
-        public static void CompileBlock(Assembly assembly, Scope scope, CompilableNode block)
+        public static void CompileBlock(Assembly assembly, Scope scope, CompilableNode block, SourceSpan span)
         {
-            var blockScope = BeginBlock(scope);
+            var blockScope = BeginBlock(assembly, scope, span);
             assembly.Barrier();
             block.Compile(assembly, blockScope, Register.DISCARD);
             assembly.Barrier();
-            EndBlock(assembly, blockScope);
+            EndBlock(assembly, blockScope, span);
         }
 
         public override void Compile(Assembly assembly, Scope scope, Register target)
@@ -169,10 +170,10 @@ namespace DCPUC
             var clauseOrder = CompileConditional(assembly, scope, ChildNodes[0] as CompilableNode);
 
             if (clauseOrder == ClauseOrder.ConstantPass)
-                CompileBlock(assembly, scope, ChildNodes[1] as CompilableNode);
+                CompileBlock(assembly, scope, ChildNodes[1] as CompilableNode, anotation.span);
             else if (clauseOrder == ClauseOrder.ConstantFail)
             {
-                if (ChildNodes.Count == 3) CompileBlock(assembly, scope, ChildNodes[2] as CompilableNode);
+                if (ChildNodes.Count == 3) CompileBlock(assembly, scope, ChildNodes[2] as CompilableNode, anotation.span);
             }
             else if (clauseOrder == ClauseOrder.PassFirst)
             {
@@ -180,13 +181,13 @@ namespace DCPUC
                 var endLabel = Scope.GetLabel() + "END";
 
                 assembly.Add("SET", "PC", elseLabel);
-                CompileBlock(assembly, scope, ChildNodes[1] as CompilableNode);
+                CompileBlock(assembly, scope, ChildNodes[1] as CompilableNode, anotation.span);
                 
                 if (ChildNodes.Count == 3)
                 {
                     assembly.Add("SET", "PC", endLabel);
                     assembly.Add(":" + elseLabel, "", "");
-                    CompileBlock(assembly, scope, ChildNodes[2] as CompilableNode);
+                    CompileBlock(assembly, scope, ChildNodes[2] as CompilableNode, anotation.span);
                 }
 
                 assembly.Add(":" + endLabel, "", "");
@@ -198,7 +199,7 @@ namespace DCPUC
                 if (ChildNodes.Count == 3)
                 {
                     assembly.Add("SET", "PC", elseLabel);
-                    CompileBlock(assembly, scope, ChildNodes[2] as CompilableNode);
+                    CompileBlock(assembly, scope, ChildNodes[2] as CompilableNode, anotation.span);
                     assembly.Add("SET", "PC", endLabel);
                     assembly.Add(":" + elseLabel, "", "");
                 }
@@ -209,7 +210,7 @@ namespace DCPUC
                     assembly.Add(":" + elseLabel, "", "");
                 }
 
-                CompileBlock(assembly, scope, ChildNodes[1] as CompilableNode);
+                CompileBlock(assembly, scope, ChildNodes[1] as CompilableNode, anotation.span);
                 assembly.Add(":" + endLabel, "", "");
             }
 
