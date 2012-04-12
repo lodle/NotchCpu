@@ -49,6 +49,7 @@
     <Reference Include="Microsoft.Build.Utilities.v4.0" />
     <Reference Include="System" />
     <Reference Include="System.Core" />
+    <Reference Include="System.Windows.Forms" />
     <Reference Include="System.Xml.Linq" />
     <Reference Include="System.Data.DataSetExtensions" />
     <Reference Include="Microsoft.CSharp" />
@@ -59,6 +60,7 @@
     <Compile Include="Class.cs" />
     <Compile Include="ClassDeclarationNode.cs" />
     <Compile Include="ClassNode.cs" />
+    <Compile Include="ClassNode_IL.cs" />
     <Compile Include="CSharpGrammer.cs" />
     <Compile Include="FunctionCallNodeCSharp.cs" />
     <Compile Include="FunctionDeclarationNode.cs" />
@@ -76,6 +78,15 @@
       <Project>{D81F5C91-D7DB-46E5-BC99-49488FB6814C}</Project>
       <Name>010.Irony.2010</Name>
     </ProjectReference>
+    <ProjectReference Include="..\NotchCpu.Emulator\NotchCpu.Emulator.csproj">
+      <Project>{42FA62A7-86B4-4E4F-A62B-DF97B3794C3A}</Project>
+      <Name>NotchCpu.Emulator</Name>
+    </ProjectReference>
+  </ItemGroup>
+  <ItemGroup>
+    <Content Include="manifest.txt">
+      <CopyToOutputDirectory>Always</CopyToOutputDirectory>
+    </Content>
   </ItemGroup>
   <Import Project="$(MSBuildToolsPath)\Microsoft.CSharp.targets" />
   <!-- To modify your build process, add your task inside one of the targets below and uncomment it. 

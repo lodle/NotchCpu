@@ -84,7 +84,21 @@ namespace NotchCpu.CompilerTasks
             using (var fh = File.CreateText(outFile))
             {
                 foreach (var str in assembly.instructions)
+                {
+                    if (str.Ignore)
+                        continue;
+
+                    var anno = str.anotation.ToString();
+
+                    if (!String.IsNullOrEmpty(anno))
+                    {
+                        fh.WriteLine(";");
+                        fh.WriteLine(";\t" + SourceFiles[0] + anno);
+                        fh.WriteLine(";");
+                    }
+
                     fh.WriteLine(str.ToString());
+                }
             }
 
             LogMessage("Out file location: " + outFile);

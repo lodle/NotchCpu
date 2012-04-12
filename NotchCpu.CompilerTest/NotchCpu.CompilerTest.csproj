@@ -55,6 +55,14 @@
     <Compile Include="Properties\AssemblyInfo.cs" />
   </ItemGroup>
   <ItemGroup>
+    <ProjectReference Include="..\DCPUC\DCPUC.csproj">
+      <Project>{B78D4E89-82C5-4405-ABDF-DCE40D5EC086}</Project>
+      <Name>DCPUC</Name>
+    </ProjectReference>
+    <ProjectReference Include="..\Irony\010.Irony.2010.csproj">
+      <Project>{D81F5C91-D7DB-46E5-BC99-49488FB6814C}</Project>
+      <Name>010.Irony.2010</Name>
+    </ProjectReference>
     <ProjectReference Include="..\NotchCpu.CompilerTasks\NotchCpu.CompilerTasks.csproj">
       <Project>{9C06938F-7482-4D29-BFC4-7E5A157BEBFB}</Project>
       <Name>NotchCpu.CompilerTasks</Name>

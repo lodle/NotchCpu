@@ -6,7 +6,7 @@ using DCPUC;
 
 namespace NotchCpu.CompilerTasks
 {
-    public class ClassNode : CompilableNode
+    public partial class ClassNode : CompilableNode
     {
         String _ClassName = "";
 
@@ -23,7 +23,7 @@ namespace NotchCpu.CompilerTasks
                 AddChild("Class Declaration", f);
         }
 
-        public override void Compile(Assembly assembly, Scope scope, Register target)
+        public override void Compile(DCPUC.Assembly assembly, Scope scope, Register target)
         {
             Class.Push(_ClassName);
 
@@ -36,7 +36,8 @@ namespace NotchCpu.CompilerTasks
             Class.Pop();
         }
 
-        internal void CompileMain(Assembly assembly, Scope scope, Register register)
+
+        internal void CompileMain(DCPUC.Assembly assembly, Scope scope, Register register)
         {
             var mainFunction = Class.MainFunction;
 
